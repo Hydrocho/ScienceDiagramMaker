@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>물리학 시험지 그림 제작기 (Physics Diagram Studio)</title>
+  <meta name="description" content="수능 및 내신 물리학 시험지에 들어갈 벡터 다이어그램, 빗금 바닥, 물리 수식 화살표 및 치수선 제작 도구" />
+  <link rel="stylesheet" href="./src/styles/main.css" />
+  <!-- Physics Textbook & LaTeX Math Fonts -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Header Navbar -->
+  <header class="app-header">
+    <div class="logo-area">
+      <div class="logo-icon">⚛️</div>
+      <div class="logo-text">
+        <h1>Physics Diagram Studio</h1>
+        <span>물리학 시험지 그림 제작기</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <button class="mode-btn active" id="modeSelectBtn" title="선택 및 이동 모드 (V)">
+        <span>🖐️ 선택 / 이동</span>
+      </button>
+      <div class="toolbar-divider"></div>
+      <button class="icon-btn" id="groupBtn" title="그룹 지정 (Ctrl+G)">📦</button>
+      <button class="icon-btn" id="ungroupBtn" title="그룹 해제 (Ctrl+Shift+G)">🔓</button>
+      <div class="toolbar-divider"></div>
+      <button class="icon-btn" id="copyBtn" title="복사 (Ctrl+C)">📋</button>
+      <button class="icon-btn" id="pasteBtn" title="붙여넣기 (Ctrl+V)">📌</button>
+      <div class="toolbar-divider"></div>
+      <button class="icon-btn" id="undoBtn" title="실행 취소 (Ctrl+Z)">↩️</button>
+      <button class="icon-btn" id="redoBtn" title="다시 실행 (Ctrl+Y)">↪️</button>
+      <button class="icon-btn" id="clearBtn" title="전체 비우기">🗑️</button>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="openSaveModalBtn" title="내부 저장소에 현재 그림 저장">
+        <span>💾 저장</span>
+      </button>
+      <button class="btn btn-secondary" id="openLoadModalBtn" title="저장된 그림 목록 불러오기">
+        <span>📂 불러오기</span>
+      </button>
+      <div class="toolbar-divider" style="height: 24px;"></div>
+      <button class="btn btn-secondary" id="openExportModalBtn">
+        <span>📤 내보내기</span>
+      </button>
+      <button class="btn btn-primary" id="copyClipboardFastBtn">
+        <span>📋 빠른 PNG 복사</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <div class="app-container">
+    <!-- Left Sidebar: Toolbox, Presets & Settings -->
+    <aside class="left-sidebar">
+      <!-- Grid & Canvas Settings Section -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">
+          <span>⚙️ 캔버스 설정 옵션</span>
+        </div>
+        <div class="settings-list">
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkShowGrid" checked />
+            <span>그리드 격자 배경 표시</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkSnapGrid" checked />
+            <span>그리드 자동 맞춤 (스냅)</span>
+          </label>
+          <label class="checkbox-label">
+            <input type="checkbox" id="chkDarkTheme" />
+            <span>다크 테마 모드</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Physics Elements Toolbox -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">
+          <span>물리 요소 도구함</span>
+        </div>
+        <div class="tools-grid">
+          <button class="tool-card" data-tool="ground">
+            <span style="font-size: 1.2rem;">🧱</span>
+            <span>빗금 바닥/벽</span>
+          </button>
+          <button class="tool-card" data-tool="ball">
+            <span style="font-size: 1.2rem;">⚪</span>
+            <span>구형 물체 (m)</span>
+          </button>
+          <button class="tool-card" data-tool="block">
+            <span style="font-size: 1.2rem;">📦</span>
+            <span>사각형 블록</span>
+          </button>
+          <button class="tool-card" data-tool="vector">
+            <span style="font-size: 1.2rem;">↗️</span>
+            <span>속도/힘 화살표</span>
+          </button>
+          <button class="tool-card" data-tool="dimension">
+            <span style="font-size: 1.2rem;">↕️</span>
+            <span>치수선 (높이 h)</span>
+          </button>
+          <button class="tool-card" data-tool="guideLine">
+            <span style="font-size: 1.2rem;">┆</span>
+            <span>보조 점선</span>
+          </button>
+          <button class="tool-card" data-tool="spring">
+            <span style="font-size: 1.2rem;">🌀</span>
+            <span>용수철 (k)</span>
+          </button>
+          <button class="tool-card" data-tool="pulley">
+            <span style="font-size: 1.2rem;">⚙️</span>
+            <span>도르래</span>
+          </button>
+          <button class="tool-card" data-tool="angleArc">
+            <span style="font-size: 1.2rem;">📐</span>
+            <span>각도 (θ)</span>
+          </button>
+          <button class="tool-card" data-tool="text">
+            <span style="font-size: 1.2rem;">🔤</span>
+            <span>수식 라벨</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Presets List -->
+      <div class="sidebar-section" style="flex: 1;">
+        <div class="sidebar-title">
+          <span>시험지 대표 프리셋 템플릿</span>
+        </div>
+        <div class="preset-list" id="presetListContainer">
+          <!-- Dynamically populated by JS -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Center Canvas Area -->
+    <main class="canvas-area">
+      <!-- Floating Zoom & Grid Controls Toolbar -->
+      <div class="canvas-toolbar">
+        <button class="icon-btn" id="zoomOutBtn" title="축소 (-)">🔍-</button>
+        <span id="zoomBadge" style="font-size: 0.8rem; font-weight: 600; min-width: 46px; text-align: center; cursor: pointer;" title="클릭 시 100% 리셋">100%</span>
+        <button class="icon-btn" id="zoomInBtn" title="확대 (+)">🔍+</button>
+        <div class="toolbar-divider"></div>
+        <button class="icon-btn" id="zoomResetBtn" title="100% 원본 크기">↺ 100%</button>
+
+        <div class="toolbar-divider"></div>
+
+        <label class="canvas-toggle-label" title="캔버스 배경 그리드 격자 On/Off">
+          <input type="checkbox" id="canvasChkShowGrid" checked />
+          <span>🌐 그리드 보기</span>
+        </label>
+
+        <label class="canvas-toggle-label" title="도형 위치 및 크기 그리드 자동 맞춤(스냅) On/Off">
+          <input type="checkbox" id="canvasChkSnapGrid" checked />
+          <span>🧲 그리드 스냅</span>
+        </label>
+      </div>
+
+      <div class="canvas-wrapper">
+        <svg id="physicsCanvas" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+          <!-- Rendered by SvgEngine -->
+        </svg>
+      </div>
+    </main>
+
+    <!-- Right Inspector Panel -->
+    <aside class="right-inspector" id="inspectorContainer">
+      <!-- Dynamically rendered by Inspector.js -->
+    </aside>
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>시험지 그림 내보내기</h3>
+        <button class="icon-btn" id="closeExportModalBtn">✕</button>
+      </div>
+      
+      <div class="export-preview">
+        <img id="exportPreviewImg" src="" alt="Diagram Preview" />
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 0.8rem;">
+        <div class="prop-group">
+          <div class="prop-label">해상도 배율 (인쇄 화질 선택)</div>
+          <div class="segmented-control">
+            <button class="seg-btn" data-scale="1">1x (기본)</button>
+            <button class="seg-btn active" data-scale="2">2x (시험지 표준 1200px)</button>
+            <button class="seg-btn" data-scale="4">4x (초고화질 2400px)</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; margin-top: 0.5rem;">
+          <button class="btn btn-accent" id="modalCopyClipboardBtn">
+            <span>📋 클립보드 복사 (한글/Word용)</span>
+          </button>
+          <button class="btn btn-primary" id="modalDownloadPngBtn">
+            <span>🖼️ PNG 파일 다운로드</span>
+          </button>
+        </div>
+        <button class="btn btn-secondary" id="modalDownloadSvgBtn">
+          <span>📐 Vector SVG 파일 다운로드</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Diagram Persistence Modal -->
+  <div class="modal-overlay" id="saveModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>💾 그림 내부에 저장하기</h3>
+        <button class="icon-btn" id="closeSaveModalBtn">✕</button>
+      </div>
+      
+      <div class="export-preview">
+        <img id="savePreviewImg" src="" alt="Diagram Save Preview" />
+      </div>
+
+      <div class="prop-group">
+        <label class="prop-label" for="saveDiagramName">저장할 그림 제목 / 이름</label>
+        <input type="text" class="prop-input" id="saveDiagramName" placeholder="예: 자유 낙하 운동 문제 1" />
+      </div>
+
+      <div style="display: flex; gap: 0.6rem; justify-content: flex-end; margin-top: 0.5rem;">
+        <button class="btn btn-secondary" id="cancelSaveModalBtn">취소</button>
+        <button class="btn btn-primary" id="confirmSaveBtn">💾 저장 완료</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Diagram Persistence Modal -->
+  <div class="modal-overlay" id="loadModal">
+    <div class="modal-card modal-card-large">
+      <div class="modal-header">
+        <h3>📂 저장된 그림 불러오기</h3>
+        <button class="icon-btn" id="closeLoadModalBtn">✕</button>
+      </div>
+
+      <div class="saved-diagrams-grid" id="savedListContainer">
+        <!-- Dynamically populated by main.js -->
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.5rem;">
+        <button class="btn btn-secondary" id="closeLoadModalFooterBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-msg" id="toastMsg">
+    <span id="toastIcon">✅</span>
+    <span id="toastText">클립보드에 이미지가 복사되었습니다!</span>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
