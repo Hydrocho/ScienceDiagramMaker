@@ -94,18 +94,21 @@ export function parsePhysicsText(rawText) {
 export function buildSvgTextSpans(rawText, fontSize = 16, fill = '#000000', options = {}) {
   const family = PHYSICS_FONTS[options.fontFamily] ?? PHYSICS_FONTS.katex;
   const weight = String(options.fontWeight) === '700' ? '700' : '400';
+  const mathStyle = options.mathStyle === 'normal' ? 'normal' : 'italic';
 
-  const span = (value, extra = '', math = true) => `<tspan font-family="${math ? family : "'Noto Serif KR', 'Malgun Gothic', 'Times New Roman', serif"}" fill="${escapeHtml(fill)}" font-weight="${weight}" font-style="${math ? 'italic' : 'normal'}" ${extra}>${escapeHtml(value)}</tspan>`;
+  const span = (value, extra = '', italic = true) => `<tspan font-family="${italic ? family : "'Noto Serif KR', 'Malgun Gothic', 'Times New Roman', serif"}" fill="${escapeHtml(fill)}" font-weight="${weight}" font-style="${italic ? mathStyle : 'normal'}" ${extra}>${escapeHtml(value)}</tspan>`;
 
   return parsePhysicsText(rawText).map(token => {
     if (token.type === 'text' || token.type === 'unit') {
       return span(token.val, '', false);
     }
-    const isMathItalic = token.type === 'math' && !token.isNumber;
+    const isMathItalic = token.type === 'math' && !token.isNumber && options.mathStyle !== 'normal';
     let svg = span(token.var, '', isMathItalic);
     for (const [key, dy] of [['sub', fontSize * 0.25], ['sup', -fontSize * 0.45]]) {
       if (token[key]) {
-        svg += span(token[key], `font-size="${fontSize * 0.7}px" dy="${dy}px"`, isMathItalic)
+        const scriptIsNumber = /^\d+$/.test(token[key]);
+        const scriptItalic = isMathItalic && !scriptIsNumber;
+        svg += span(token[key], `font-size="${fontSize * 0.7}px" dy="${dy}px"`, scriptItalic)
           + `<tspan dy="${-dy}px">&#8203;</tspan>`;
       }
     }

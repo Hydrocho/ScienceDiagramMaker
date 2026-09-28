@@ -15,7 +15,7 @@ export const PRESETS = [
         x1: 60, y1: 360,
         x2: 540, y2: 360,
         hatchSide: 'bottom',
-        hatchSize: 14
+        hatchSize: 15
       },
       {
         id: 'dim_h',
@@ -29,14 +29,14 @@ export const PRESETS = [
         id: 'guide_h',
         type: 'guideLine',
         x1: 180, y1: 135,
-        x2: 320, y2: 135,
+        x2: 345, y2: 135,
         style: 'dashed'
       },
       {
         id: 'ball_1',
         type: 'ball',
         cx: 345, cy: 135,
-        r: 25,
+        r: 30,
         label: '질량 m',
         showCenterDot: false,
         fill: '#ffffff'
@@ -44,8 +44,8 @@ export const PRESETS = [
       {
         id: 'vec_v',
         type: 'vector',
-        x1: 345, y1: 160,
-        x2: 345, y2: 250,
+        x1: 345, y1: 165,
+        x2: 345, y2: 255,
         label: '속력 v',
         labelPos: 'right',
         strokeWidth: 2.2
@@ -61,38 +61,39 @@ export const PRESETS = [
       {
         id: 'ground_base',
         type: 'ground',
-        x1: 75, y1: 345,
-        x2: 480, y2: 345,
+        x1: 75, y1: 360,
+        x2: 480, y2: 360,
         hatchSide: 'bottom',
-        hatchSize: 12
+        hatchSize: 15
       },
       {
         id: 'ramp_line',
         type: 'guideLine',
-        x1: 120, y1: 345,
-        x2: 435, y2: 180,
+        x1: 120, y1: 360,
+        x2: 420, y2: 210,
         style: 'solid'
       },
       {
         id: 'ramp_wall',
         type: 'guideLine',
-        x1: 435, y1: 180,
-        x2: 435, y2: 345,
+        x1: 420, y1: 210,
+        x2: 420, y2: 360,
         style: 'solid'
       },
       {
         id: 'block_ramp',
         type: 'block',
-        x: 240, y: 240,
-        width: 60, height: 45,
+        x: 240, y: 225,
+        width: 60, height: 67.08203932499369,
+        rotation: -26.56505117707799,
         label: 'm',
         fill: '#ffffff'
       },
       {
         id: 'vec_force',
         type: 'vector',
-        x1: 300, y1: 240,
-        x2: 375, y2: 200,
+        x1: 240, y1: 225,
+        x2: 300, y2: 195,
         label: 'F',
         labelPos: 'top',
         strokeWidth: 2
@@ -100,16 +101,16 @@ export const PRESETS = [
       {
         id: 'angle_theta',
         type: 'angleArc',
-        cx: 120, cy: 345,
+        cx: 120, cy: 360,
         r: 35,
-        startAngle: 0, endAngle: 28,
+        startAngle: 0, endAngle: 26.56505117707799,
         label: '\\theta'
       },
       {
         id: 'dim_ramp_h',
         type: 'dimension',
-        x1: 465, y1: 180,
-        x2: 465, y2: 345,
+        x1: 450, y1: 210,
+        x2: 450, y2: 360,
         label: 'h',
         showGuides: true
       }
@@ -127,7 +128,7 @@ export const PRESETS = [
         x1: 105, y1: 150,
         x2: 105, y2: 345,
         hatchSide: 'left',
-        hatchSize: 12
+        hatchSize: 15
       },
       {
         id: 'ground_bottom',
@@ -135,7 +136,7 @@ export const PRESETS = [
         x1: 105, y1: 345,
         x2: 495, y2: 345,
         hatchSide: 'bottom',
-        hatchSize: 12
+        hatchSize: 15
       },
       {
         id: 'spring_k',
@@ -177,13 +178,14 @@ export const PRESETS = [
         x1: 150, y1: 75,
         x2: 450, y2: 75,
         hatchSide: 'top',
-        hatchSize: 12
+        hatchSize: 15
       },
       {
         id: 'pulley_wheel',
         type: 'pulley',
         cx: 300, cy: 135,
         r: 30,
+        supportLength: 30,
         label: ''
       },
       {
@@ -211,15 +213,15 @@ export const PRESETS = [
       {
         id: 'block_m2',
         type: 'block',
-        x: 300, y: 285,
-        width: 60, height: 45,
+        x: 315, y: 285,
+        width: 30, height: 45,
         label: 'm_2',
         fill: '#ffffff'
       },
       {
         id: 'vec_a1',
         type: 'vector',
-        x1: 225, y1: 275,
+        x1: 225, y1: 270,
         x2: 225, y2: 240,
         label: 'a',
         labelPos: 'left',
@@ -239,7 +241,7 @@ export const PRESETS = [
         x1: 75, y1: 330,
         x2: 525, y2: 330,
         hatchSide: 'bottom',
-        hatchSize: 12
+        hatchSize: 15
       },
       {
         id: 'ball_A',
@@ -276,6 +278,40 @@ export const PRESETS = [
         label: 'v_B',
         labelPos: 'top',
         strokeWidth: 2
+      }
+    ]
+  },
+  {
+    id: 'circular_wire',
+    title: '원형 도선과 자기장 (Circular Wire)',
+    desc: '원형 도선(점선/실선 외곽선) 중심에서의 자기장 B와 전류 I 표시',
+    badge: '6',
+    elements: [
+      {
+        id: 'wire_dashed_loop',
+        type: 'ball',
+        cx: 300, cy: 210,
+        r: 75,
+        dashed: true,
+        fill: 'none',
+        label: '전류 I',
+        showCenterDot: true
+      },
+      {
+        id: 'vec_i_current',
+        type: 'vector',
+        x1: 375, y1: 210,
+        x2: 375, y2: 150,
+        label: 'I',
+        labelPos: 'right',
+        strokeWidth: 2.2
+      },
+      {
+        id: 'text_b_field',
+        type: 'text',
+        x: 315, y: 210,
+        text: '자기장 B',
+        fontSize: 18
       }
     ]
   }

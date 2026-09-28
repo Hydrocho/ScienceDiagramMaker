@@ -7,7 +7,37 @@ export class Inspector {
   constructor(containerElement, svgEngine) {
     this.container = containerElement;
     this.engine = svgEngine;
+    this.lastFill = new Map();
     this.engine.onSelectionChange = this.render.bind(this);
+  }
+
+  edit(e) {
+    const input = e.target;
+    if (!input) return;
+    const propName = input.dataset?.prop || input.id?.replace('prop_', '');
+    let val = input.type === 'checkbox' ? input.checked : input.value;
+    if (val === 'true') val = true;
+    if (val === 'false') val = false;
+
+    if (propName === 'noFill') {
+      const selected = this.engine.getSelectedElement ? this.engine.getSelectedElement() : null;
+      if (selected) {
+        if (input.checked) {
+          if (selected.fill && selected.fill !== 'none') {
+            this.lastFill.set(selected.id, selected.fill);
+          }
+          this.engine.updateSelectedElement({ fill: 'none' });
+        } else {
+          const prevColor = this.lastFill.get(selected.id) || '#ffffff';
+          this.engine.updateSelectedElement({ fill: prevColor });
+        }
+      }
+      return;
+    }
+
+    if (propName) {
+      this.engine.updateSelectedElement({ [propName]: val });
+    }
   }
 
   render(selectedInput) {
@@ -104,6 +134,13 @@ export class Inspector {
             <div class="prop-label">반지름 (Radius)</div>
             <input type="number" class="prop-input" id="prop_r" value="${el.r || 20}" min="5" max="100" />
           </div>
+          <div class="prop-group">
+            <div class="prop-label">외곽선 선 스타일</div>
+            <select class="prop-input" id="prop_dashed">
+              <option value="false" ${!el.dashed && el.style !== 'dashed' && el.lineStyle !== 'dashed' ? 'selected' : ''}>실선 (Solid)</option>
+              <option value="true" ${el.dashed || el.style === 'dashed' || el.lineStyle === 'dashed' ? 'selected' : ''}>점선 (Dashed)</option>
+            </select>
+          </div>
           <div class="prop-group" style="margin-top: 0.4rem;">
             <label class="checkbox-label" style="font-size: 0.85rem; font-weight: 600;">
               <input type="checkbox" class="prop-input" id="prop_showCenterDot" ${el.showCenterDot ? 'checked' : ''} />
@@ -125,6 +162,13 @@ export class Inspector {
               <div class="prop-label">세로 높이</div>
               <input type="number" class="prop-input" id="prop_height" value="${el.height || 40}" min="10" />
             </div>
+          </div>
+          <div class="prop-group">
+            <div class="prop-label">외곽선 선 스타일</div>
+            <select class="prop-input" id="prop_dashed">
+              <option value="false" ${!el.dashed && el.style !== 'dashed' && el.lineStyle !== 'dashed' ? 'selected' : ''}>실선 (Solid)</option>
+              <option value="true" ${el.dashed || el.style === 'dashed' || el.lineStyle === 'dashed' ? 'selected' : ''}>점선 (Dashed)</option>
+            </select>
           </div>
           ${this.renderGrayPaletteControl(el)}
         `;
@@ -350,7 +394,7 @@ export class Inspector {
     const names = {
       group: '그룹 객체',
       ground: '빗금 바닥/벽',
-      ball: '구형 물체(원)',
+      ball: '원형 도선 / 구형 물체(원)',
       block: '사각형 물체',
       vector: '벡터 화살표',
       dimension: '치수선(높이/거리)',

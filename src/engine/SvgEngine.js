@@ -270,9 +270,21 @@ export class SvgEngine {
     return element;
   }
 
-  updateSelectedElement(props, skipSelectionChange = false) {
+  updateSelectedElement(props, options = false) {
     const el = this.getSelectedElement();
     if (!el) return;
+
+    let save = true;
+    let notify = true;
+    let skipSelectionChange = false;
+
+    if (typeof options === 'boolean') {
+      skipSelectionChange = options;
+    } else if (typeof options === 'object' && options !== null) {
+      if (options.save !== undefined) save = options.save;
+      if (options.notify !== undefined) notify = options.notify;
+      if (options.skipSelectionChange !== undefined) skipSelectionChange = options.skipSelectionChange;
+    }
 
     // Enforce ball radius alignment to grid step (multiples of 15px)
     if (el.type === 'ball' && props.r !== undefined) {
@@ -281,8 +293,42 @@ export class SvgEngine {
     }
 
     Object.assign(el, props);
+    if (save) {
+      this.saveState();
+    }
+    this.render(notify);
+  }
+
+  duplicateSelected() {
+    const el = this.getSelectedElement();
+    if (!el) return null;
+
+    const copy = JSON.parse(JSON.stringify(el));
+    copy.id = 'elem_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+
+    const step = this.gridSize || 15;
+    this.offsetElementPosition(copy, step, step);
+
+    this.elements.push(copy);
+    this.selectedIds = new Set([copy.id]);
     this.saveState();
-    this.render(skipSelectionChange);
+    this.render();
+    return copy;
+  }
+
+  arrangeSelected(direction) {
+    const isSel = el => (this.selectedIds && this.selectedIds.has(el.id)) || el.id === this.selectedId;
+    const selectedElements = this.elements.filter(isSel);
+    if (selectedElements.length === 0) return;
+
+    const remainingElements = this.elements.filter(el => !isSel(el));
+    if (direction === 'front') {
+      this.elements = [...remainingElements, ...selectedElements];
+    } else if (direction === 'back') {
+      this.elements = [...selectedElements, ...remainingElements];
+    }
+    this.saveState();
+    this.render();
   }
 
   deleteSelectedElement() {
@@ -507,11 +553,16 @@ export class SvgEngine {
   }
 
   drawGround(el) {
-    const { x1, y1, x2, y2, hatchSide = 'bottom', hatchSize = 12 } = el;
+    const { x1, y1, x2, y2, hatchSide = 'bottom', hatchSize = 12, stroke = '#000000', strokeWidth = 2.5, lineStyle, style, dashed } = el;
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy);
     const angle = Math.atan2(dy, dx);
+
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
 
     let polyPoints = '';
     const h = hatchSize;
@@ -526,21 +577,29 @@ export class SvgEngine {
         <!-- Transparent Click Buffer -->
         <line x1="0" y1="0" x2="${len}" y2="0" stroke="transparent" stroke-width="18" pointer-events="stroke" />
         <polygon points="${polyPoints}" fill="url(#hatch-pattern)" stroke="none" />
-        <line x1="0" y1="0" x2="${len}" y2="0" stroke="#000000" stroke-width="2.5" stroke-linecap="square" />
+        <line x1="0" y1="0" x2="${len}" y2="0" stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} stroke-linecap="square" />
       </g>
     `;
   }
 
   drawBall(el) {
-    const { cx, cy, r = 25, label = '', showCenterDot = false, fill = '#ffffff', fontSize = 18 } = el;
+    const { cx, cy, r = 25, label = '', showCenterDot = false, fill = '#ffffff', fillOpacity, fontSize = 18, dashed = false, style = 'solid', lineStyle, stroke = '#000000', strokeWidth = 2.5 } = el;
     const labelSpans = buildSvgTextSpans(label, fontSize);
+
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
+    const fillVal = fill === 'none' ? 'none' : fill;
+    const opacityAttr = fillOpacity !== undefined ? `fill-opacity="${fillOpacity}"` : '';
 
     return `
       <g transform="translate(${cx}, ${cy})">
-        <circle cx="0" cy="0" r="${r}" fill="${fill}" stroke="#000000" stroke-width="2.5" />
-        ${showCenterDot ? '<circle cx="0" cy="0" r="2.5" fill="#000000" />' : ''}
+        <circle cx="0" cy="0" r="${r}" fill="${fillVal}" ${opacityAttr} stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} />
+        ${showCenterDot ? `<circle cx="0" cy="0" r="2.5" fill="${stroke}" />` : ''}
         ${label ? `
-          <text x="0" y="-${r + 10}" text-anchor="middle" font-size="${fontSize}px" fill="#000000">
+          <text x="0" y="-${r + 10}" text-anchor="middle" font-size="${fontSize}px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
@@ -549,15 +608,24 @@ export class SvgEngine {
   }
 
   drawBlock(el) {
-    const { x, y, width = 60, height = 40, label = '', fill = '#ffffff', fontSize = 18, rotation = 0 } = el;
+    const { x, y, width = 60, height = 40, label = '', fill = '#ffffff', fillOpacity, fontSize = 18, rotation = 0, dashed = false, style = 'solid', lineStyle, stroke = '#000000', strokeWidth = 2.5, textColor = '#000000', labelOffsetX = 0, labelOffsetY = 0 } = el;
     const labelSpans = buildSvgTextSpans(label, fontSize);
     const rotAttr = rotation ? ` rotate(${rotation})` : '';
 
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
+    const fillVal = fill === 'none' ? 'none' : fill;
+    const opacityAttr = fillOpacity !== undefined ? `fill-opacity="${fillOpacity}"` : '';
+    const textTransform = (labelOffsetX || labelOffsetY) ? ` transform="translate(${labelOffsetX}, ${labelOffsetY})"` : '';
+
     return `
       <g transform="translate(${x}, ${y})${rotAttr}">
-        <rect x="0" y="0" width="${width}" height="${height}" fill="${fill}" stroke="#000000" stroke-width="2.5" rx="1" />
+        <rect x="0" y="0" width="${width}" height="${height}" fill="${fillVal}" ${opacityAttr} stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} rx="1" />
         ${label ? `
-          <text x="${width / 2}" y="${height / 2 + 6}" text-anchor="middle" font-size="${fontSize}px" fill="#000000">
+          <text x="${width / 2}" y="${height / 2 + 6}" text-anchor="middle" font-size="${fontSize}px" fill="${textColor}"${textTransform}>
             ${labelSpans}
           </text>
         ` : ''}
@@ -566,11 +634,46 @@ export class SvgEngine {
   }
 
   drawVector(el) {
-    const { x1, y1, x2, y2, label = '', dashed = false, labelPos = 'right', strokeWidth = 2.2, fontSize = 18 } = el;
+    const { x1, y1, x2, y2, label = '', dashed = false, style = 'solid', lineStyle, labelPos = 'right', strokeWidth = 2.2, fontSize = 18, stroke = '#000000', arrowStart = 'none', arrowEnd = 'triangle', arrowSize = 7 } = el;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
-    const dashAttr = dashed ? 'stroke-dasharray="5,4"' : '';
-    
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
+    let markerStartAttr = '';
+    let markerEndAttr = '';
+    let customMarkers = '';
+
+    if (arrowStart && arrowStart !== 'none') {
+      if (arrowStart === 'open' || arrowSize !== 7) {
+        const markerId = `marker_start_${Math.abs(Math.round(x1 + y1 + arrowSize))}`;
+        customMarkers += `
+          <marker id="${markerId}" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse">
+            ${arrowStart === 'open' ? `<path d="M 0 1 L 10 5 L 0 9" fill="none" stroke="${stroke}" stroke-width="1.2" />` : `<path d="M 0 1 L 10 5 L 0 9 Z" fill="${stroke}" />`}
+          </marker>
+        `;
+        markerStartAttr = `marker-start="url(#${markerId})"`;
+      } else {
+        markerStartAttr = `marker-start="url(#arrowhead)"`;
+      }
+    }
+
+    if (arrowEnd && arrowEnd !== 'none') {
+      if (arrowEnd === 'open' || arrowSize !== 7) {
+        const markerId = `marker_end_${Math.abs(Math.round(x2 + y2 + arrowSize))}`;
+        customMarkers += `
+          <marker id="${markerId}" viewBox="0 0 10 10" refX="10" refY="5" markerWidth="${arrowSize}" markerHeight="${arrowSize}" orient="auto-start-reverse">
+            ${arrowEnd === 'open' ? `<path d="M 0 1 L 10 5 L 0 9" fill="none" stroke="${stroke}" stroke-width="1.2" />` : `<path d="M 0 1 L 10 5 L 0 9 Z" fill="${stroke}" />`}
+          </marker>
+        `;
+        markerEndAttr = `marker-end="url(#${markerId})"`;
+      } else {
+        markerEndAttr = `marker-end="url(#arrowhead)"`;
+      }
+    }
+
     let offsetX = 12;
     let offsetY = 6;
     let textAnchor = 'start';
@@ -583,13 +686,14 @@ export class SvgEngine {
 
     return `
       <g>
+        ${customMarkers ? `<defs>${customMarkers}</defs>` : ''}
         <!-- Wide Transparent Hit Target Buffer Line (18px Wide) -->
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="18" pointer-events="stroke" />
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" 
-              stroke="#000000" stroke-width="${strokeWidth}" ${dashAttr} 
-              marker-end="url(#arrowhead)" />
+              stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} 
+              ${markerStartAttr} ${markerEndAttr} />
         ${label ? `
-          <text x="${midX + offsetX}" y="${midY + offsetY}" text-anchor="${textAnchor}" font-size="${fontSize}px" fill="#000000">
+          <text x="${midX + offsetX}" y="${midY + offsetY}" text-anchor="${textAnchor}" font-size="${fontSize}px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
@@ -598,25 +702,30 @@ export class SvgEngine {
   }
 
   drawDimension(el) {
-    const { x1, y1, x2, y2, label = '', showGuides = true, fontSize = 18, labelPos = 'left' } = el;
+    const { x1, y1, x2, y2, label = '', showGuides = true, fontSize = 18, labelPos = 'left', stroke = '#000000', strokeWidth = 2, lineStyle, style, dashed } = el;
     const dx = x2 - x1;
     const dy = y2 - y1;
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const labelSpans = buildSvgTextSpans(label, fontSize);
 
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
     let guidesSvg = '';
     if (showGuides) {
       const isVertical = Math.abs(dy) > Math.abs(dx);
       if (isVertical) {
         guidesSvg = `
-          <line x1="${x1 - 25}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,3" />
-          <line x1="${x2 - 25}" y1="${y2}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,3" />
+          <line x1="${x1 - 25}" y1="${y1}" x2="${x1}" y2="${y1}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="4,3" />
+          <line x1="${x2 - 25}" y1="${y2}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="4,3" />
         `;
       } else {
         guidesSvg = `
-          <line x1="${x1}" y1="${y1 - 25}" x2="${x1}" y2="${y1}" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,3" />
-          <line x1="${x2}" y1="${y2 - 25}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="1.5" stroke-dasharray="4,3" />
+          <line x1="${x1}" y1="${y1 - 25}" x2="${x1}" y2="${y1}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="4,3" />
+          <line x1="${x2}" y1="${y2 - 25}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="1.5" stroke-dasharray="4,3" />
         `;
       }
     }
@@ -645,11 +754,11 @@ export class SvgEngine {
         ${guidesSvg}
         <!-- Wide Transparent Hit Target Buffer Line (18px Wide) -->
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="18" pointer-events="stroke" />
-        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000000" stroke-width="2" 
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} 
               marker-start="url(#dimension-arrow)" marker-end="url(#dimension-arrow)" />
         ${label ? `
           ${bgRectSvg}
-          <text x="${textX}" y="${textY}" text-anchor="${textAnchor}" font-size="${fontSize}px" fill="#000000">
+          <text x="${textX}" y="${textY}" text-anchor="${textAnchor}" font-size="${fontSize}px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
@@ -658,25 +767,34 @@ export class SvgEngine {
   }
 
   drawGuideLine(el) {
-    const { x1, y1, x2, y2, style = 'dashed' } = el;
-    const dashArray = style === 'dotted' ? '3,3' : style === 'dashed' ? '5,4' : '';
+    const { x1, y1, x2, y2, style = 'dashed', lineStyle, dashed, stroke = '#000000', strokeWidth = 1.8 } = el;
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'dashed');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashArray = dashMap[effectiveStyle] ?? (effectiveStyle === 'dotted' ? '2,3' : '5,4');
+    const dashAttr = dashArray ? `stroke-dasharray="${dashArray}"` : '';
+
     return `
       <g>
         <!-- Wide Transparent Hit Target Buffer Line (18px Wide) -->
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="18" pointer-events="stroke" />
         <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" 
-              stroke="#000000" stroke-width="1.8" stroke-dasharray="${dashArray}" />
+              stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} />
       </g>
     `;
   }
 
   drawSpring(el) {
-    const { x1, y1, x2, y2, coils = 8, radius = 10, label = '' } = el;
+    const { x1, y1, x2, y2, coils = 8, radius = 10, label = '', stroke = '#000000', strokeWidth = 2, lineStyle, style, dashed } = el;
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy);
     const angle = Math.atan2(dy, dx);
     const labelSpans = buildSvgTextSpans(label, 16);
+
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
 
     let pathData = `M 0,0 L 10,0 `;
     const springLen = len - 20;
@@ -692,9 +810,9 @@ export class SvgEngine {
       <g transform="translate(${x1}, ${y1}) rotate(${angle * 180 / Math.PI})">
         <!-- Wide Transparent Hit Target Buffer Line (24px Wide) -->
         <line x1="0" y1="0" x2="${len}" y2="0" stroke="transparent" stroke-width="24" pointer-events="stroke" />
-        <path d="${pathData}" fill="none" stroke="#000000" stroke-width="2" stroke-linejoin="round" />
+        <path d="${pathData}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} stroke-linejoin="round" />
         ${label ? `
-          <text x="${len / 2}" y="-${radius + 6}" text-anchor="middle" font-size="16px" fill="#000000">
+          <text x="${len / 2}" y="-${radius + 6}" text-anchor="middle" font-size="16px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
@@ -703,17 +821,25 @@ export class SvgEngine {
   }
 
   drawPulley(el) {
-    const { cx, cy, r = 24, label = '', fill = '#ffffff' } = el;
+    const { cx, cy, r = 24, label = '', fill = '#ffffff', fillOpacity, stroke = '#000000', strokeWidth = 2.5, lineStyle, style, dashed } = el;
     const labelSpans = buildSvgTextSpans(label, 16);
+
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
+    const fillVal = fill === 'none' ? 'none' : fill;
+    const opacityAttr = fillOpacity !== undefined ? `fill-opacity="${fillOpacity}"` : '';
 
     return `
       <g transform="translate(${cx}, ${cy})">
-        <circle cx="0" cy="0" r="${r}" fill="${fill}" stroke="#000000" stroke-width="2.5" />
-        <circle cx="0" cy="0" r="4" fill="#000000" />
-        <path d="M -8,0 L 0,-${r + 12} L 8,0" fill="none" stroke="#000000" stroke-width="2" />
-        <line x1="0" y1="-${r + 12}" x2="0" y2="-${r + 24}" stroke="#000000" stroke-width="2.5" />
+        <circle cx="0" cy="0" r="${r}" fill="${fillVal}" ${opacityAttr} stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} />
+        <circle cx="0" cy="0" r="4" fill="${stroke}" />
+        <path d="M -8,0 L 0,-${r + 12} L 8,0" fill="none" stroke="${stroke}" stroke-width="2" />
+        <line x1="0" y1="-${r + 12}" x2="0" y2="-${r + 24}" stroke="${stroke}" stroke-width="${strokeWidth}" />
         ${label ? `
-          <text x="${r + 10}" y="5" text-anchor="start" font-size="16px" fill="#000000">
+          <text x="${r + 10}" y="5" text-anchor="start" font-size="16px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
@@ -722,7 +848,7 @@ export class SvgEngine {
   }
 
   drawAngleArc(el) {
-    const { cx, cy, r = 30, startAngle = 0, endAngle = 35, label = '\\theta' } = el;
+    const { cx, cy, r = 30, startAngle = 0, endAngle = 35, label = '\\theta', stroke = '#000000', strokeWidth = 1.8, lineStyle, style, dashed } = el;
     const radStart = (startAngle * Math.PI) / 180;
     const radEnd = (endAngle * Math.PI) / 180;
 
@@ -738,14 +864,19 @@ export class SvgEngine {
     const largeArc = (endAngle - startAngle) > 180 ? 1 : 0;
     const labelSpans = buildSvgTextSpans(label, 16);
 
+    const effectiveStyle = lineStyle || style || (dashed ? 'dashed' : 'solid');
+    const dashMap = { solid: '', dashed: '5,4', dotted: '2,3', dashdot: '8,3,2,3' };
+    const dashVal = dashMap[effectiveStyle] || (dashed ? '5,4' : '');
+    const dashAttr = dashVal ? `stroke-dasharray="${dashVal}"` : '';
+
     return `
       <g>
         <!-- Wide Transparent Hit Target Arc (18px Wide) -->
         <path d="M ${x1},${y1} A ${r} ${r} 0 ${largeArc} 0 ${x2},${y2}" fill="none" stroke="transparent" stroke-width="18" pointer-events="stroke" />
         <path d="M ${x1},${y1} A ${r} ${r} 0 ${largeArc} 0 ${x2},${y2}" 
-              fill="none" stroke="#000000" stroke-width="1.8" />
+              fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" ${dashAttr} />
         ${label ? `
-          <text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="16px" fill="#000000">
+          <text x="${labelX}" y="${labelY}" text-anchor="middle" font-size="16px" fill="${stroke}">
             ${labelSpans}
           </text>
         ` : ''}
